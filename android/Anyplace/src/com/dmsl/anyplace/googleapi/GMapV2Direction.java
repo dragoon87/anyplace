@@ -40,6 +40,7 @@ package com.dmsl.anyplace.googleapi;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -47,6 +48,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
@@ -73,18 +75,24 @@ public class GMapV2Direction {
 	}
 
 	public Document getDocument(double fromLatitude, double fromLongitude, GeoPoint toPosition, String mode) throws Exception {
-		String url = "http://maps.googleapis.com/maps/api/directions/xml?" + "origin=" + fromLatitude + "," + fromLongitude + "&destination=" + toPosition.lat + "," + toPosition.lng
-				+ "&sensor=false&units=metric&mode=" + mode;
+		//String url = "http://maps.googleapis.com/maps/api/directions/xml?" + "origin=" + fromLatitude + "," + fromLongitude + "&destination=" + toPosition.lat + "," + toPosition.lng
+		//		+ "&sensor=false&units=metric&mode=" + mode;
+		String url = "https://restapi.amap.com/v3/direction/" + mode + "?origin=" + fromLongitude + "," + fromLatitude + "&destination=" + toPosition.lng + "," + toPosition.lat
+				+ "&output=xml&key=b4e5728abed0f728ab98ce70c07b67e7";
 
 		HttpParams httpParameters = new BasicHttpParams();
 		HttpConnectionParams.setConnectionTimeout(httpParameters, 20000); // 20seconds
 		HttpConnectionParams.setSoTimeout(httpParameters, 20000); // 20 seconds
 
 		HttpClient httpClient = new DefaultHttpClient(httpParameters);
-		HttpPost httpPost = new HttpPost(url);
+		//HttpPost httpPost = new HttpPost(url);
+		HttpGet httpGet = new HttpGet(url);
+		//HashMap<String, String> headers = new HashMap<String, String>();
+		httpGet.setHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 		HttpContext localContext = new BasicHttpContext();
 
-		HttpResponse response = httpClient.execute(httpPost, localContext);
+		//HttpResponse response = httpClient.execute(httpPost, localContext);
+		HttpResponse response = httpClient.execute(httpGet, localContext);
 
 		InputStream in = response.getEntity().getContent();
 		DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -183,6 +191,28 @@ public class GMapV2Direction {
 				lngNode = nl3.item(getNodeIndex(nl3, "lng"));
 				lng = Double.parseDouble(lngNode.getTextContent());
 				listGeopoints.add(new LatLng(lat, lng));
+			}
+		}
+
+		return listGeopoints;
+	}
+
+	public ArrayList<com.amap.api.maps.model.LatLng> getDirection2(Document doc) {
+		NodeList nl1, nl2, nl3;
+		ArrayList<com.amap.api.maps.model.LatLng> listGeopoints = new ArrayList<com.amap.api.maps.model.LatLng>();
+		nl1 = doc.getElementsByTagName("step");
+		if (nl1.getLength() > 0) {
+			for (int i = 0; i < nl1.getLength(); i++) {
+				Node node1 = nl1.item(i);
+				nl2 = node1.getChildNodes();
+
+				Node polylineNode = nl2.item(getNodeIndex(nl2, "polyline"));
+				String polyline = polylineNode.getTextContent();
+				String[] points = polyline.split(";");
+				for (String point : points) {
+					String[] latlng = point.split(",");
+					listGeopoints.add(new com.amap.api.maps.model.LatLng(Double.valueOf(latlng[1]), Double.valueOf(latlng[0])));
+				}
 			}
 		}
 

@@ -40,6 +40,11 @@ import com.actionbarsherlock.app.SherlockFragmentActivity;
 import com.actionbarsherlock.view.Menu;
 import com.actionbarsherlock.view.MenuInflater;
 import com.actionbarsherlock.view.MenuItem;
+import com.amap.api.maps.AMap;
+import com.amap.api.maps.MapView;
+import com.amap.api.maps.UiSettings;
+import com.amap.api.maps.model.MyLocationStyle;
+import com.dmsl.anyplace.googlemap.AnyPlaceMapTileProvider2;
 import com.flurry.android.FlurryAgent;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient;
@@ -141,7 +146,7 @@ import android.widget.Toast;
  *
  */
 public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements OnSharedPreferenceChangeListener, GooglePlayServicesClient.ConnectionCallbacks,
-		GooglePlayServicesClient.OnConnectionFailedListener, LocationListener, OnMapClickListener {
+		GooglePlayServicesClient.OnConnectionFailedListener, LocationListener, OnMapClickListener, com.amap.api.maps.AMap.OnMapClickListener {
 	private static final String TAG = "AnyplaceLoggerActivity";
 	public static final String SHARED_PREFS_LOGGER = "LoggerPreferences";
 
@@ -160,6 +165,10 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 	private LocationRequest mLocationRequest;
 
 	private GoogleMap mMap;
+	private MapView mMapView = null;;
+	private AMap aMap = null;
+	private UiSettings mUiSettings = null;//定义一个UiSettings对象
+	private boolean useAmap = true;
 	private Marker marker;
 	private LatLng curLocation = null;
 
@@ -375,6 +384,48 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 
 		AnyPlaceLoggerReceiver mSamplingAnyplaceLoggerReceiver = new AnyPlaceLoggerReceiver();
 		logger = new LoggerWiFi(mSamplingAnyplaceLoggerReceiver);
+		//必须在setUpMapIfNeeded前面
+		if (useAmap) {
+			// 定义北京市经纬度坐标（此处以北京坐标为例）
+			com.amap.api.maps.model.LatLng point= new com.amap.api.maps.model.LatLng(30.534380,114.357892);
+			/*// 定义了一个配置 AMap 对象的参数类
+			AMapOptions mapOptions = new AMapOptions();
+			// 设置了一个可视范围的初始化位置
+			// CameraPosition 第一个参数： 目标位置的屏幕中心点经纬度坐标。
+			// CameraPosition 第二个参数： 目标可视区域的缩放级别
+			// CameraPosition 第三个参数： 目标可视区域的倾斜度，以角度为单位。
+			// CameraPosition 第四个参数： 可视区域指向的方向，以角度为单位，从正北向顺时针方向计算，从0度到360度
+			mapOptions.camera(new com.amap.api.maps.model.CameraPosition(point, 10f, 0, 0));
+			// 定义一个 MapView 对象，构造方法中传入 mapOptions 参数类
+			mMapView = new MapView(this, mapOptions);*/
+			//获取地图控件引用
+			mMapView = (MapView) findViewById(R.id.map2);
+			//在activity执行onCreate时执行mMapView.onCreate(savedInstanceState)，创建地图
+			mMapView.onCreate(savedInstanceState);
+			//初始化地图控制器对象
+			if (aMap == null) {
+				aMap = mMapView.getMap();
+			}
+			//参数依次是：视角调整区域的中心点坐标、希望调整到的缩放级别、俯仰角0°~45°（垂直与地图时为0）、偏航角 0~360° (正北方为0)
+			com.amap.api.maps.CameraUpdate mCameraUpdate = com.amap.api.maps.CameraUpdateFactory.newCameraPosition(new com.amap.api.maps.model.CameraPosition(point,18,0,0));
+			aMap.moveCamera(mCameraUpdate);
+
+			MyLocationStyle myLocationStyle;
+			myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
+			myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATE) ;//定位一次，且将视角移动到地图中心点。
+			myLocationStyle.interval(2000); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
+			aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
+			aMap.getUiSettings().setMyLocationButtonEnabled(true);//设置默认定位按钮是否显示，非必需设置。
+			aMap.setMyLocationEnabled(true);// 设置为true表示启动显示定位蓝点，false表示隐藏定位蓝点并不进行定位，默认是false。
+
+			aMap.setMaxZoomLevel(20);
+			if (mUiSettings == null) {
+				mUiSettings = aMap.getUiSettings();//实例化UiSettings类对象
+			}
+			//mUiSettings.setZoomControlsEnabled(false);
+
+			btnRecord.setVisibility(View.VISIBLE);
+		}
 
 		setUpMapIfNeeded();
 	}
@@ -520,6 +571,9 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 		});
 
 		mMap.setOnMapClickListener(this);
+		if (useAmap) {
+			aMap.setOnMapClickListener(this);
+		}
 
 		mMap.setOnMarkerDragListener(new OnMarkerDragListener() {
 
@@ -576,8 +630,9 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 	 * LOCATION API FUNCTIONS
 	 */
 	private boolean checkPlayServices() {
+		return true;
 		// Check that Google Play services is available
-		int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+		/*int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
 		// If Google Play services is available
 		if (ConnectionResult.SUCCESS == resultCode) {
 			// In debug mode, log the status
@@ -596,7 +651,7 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 				finish();
 			}
 			return false;
-		}
+		}*/
 	}
 
 	@Override
@@ -667,6 +722,14 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 		marker.rotation(raw_heading - bearing);
 		gpsMarker = this.mMap.addMarker(marker);
 
+		if (useAmap) {
+			com.amap.api.maps.model.MarkerOptions marker2 = new com.amap.api.maps.model.MarkerOptions();
+			marker2.position(new com.amap.api.maps.model.LatLng(gps.dlat, gps.dlon));
+			marker2.title("User").snippet("Estimated Position");
+			marker2.icon(com.amap.api.maps.model.BitmapDescriptorFactory.fromResource(R.drawable.icon21));
+			marker2.rotateAngle(raw_heading - bearing);
+			this.aMap.addMarker(marker2);
+		}
 	}
 
 	private void handleBuildingsOnMap() {
@@ -716,6 +779,10 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 		if (!mIsSamplingActive) {
 			positioning.pause();
 		}
+		if (useAmap) {
+			//在activity执行onPause时执行mMapView.onPause ()，暂停地图的绘制
+			mMapView.onPause();
+		}
 	}
 
 	@Override
@@ -726,6 +793,11 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 
 		if (!mIsSamplingActive) {
 			positioning.resume();
+		}
+
+		if (useAmap) {
+			//在activity执行onResume时执行mMapView.onResume ()，重新绘制加载地图
+			mMapView.onResume();
 		}
 	}
 
@@ -758,6 +830,10 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 		super.onDestroy();
 
 		wifi.unregisterScan(receiverWifi);
+		if (useAmap) {
+			//在activity执行onDestroy时执行mMapView.onDestroy()，销毁地图
+			mMapView.onDestroy();
+		}
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -937,6 +1013,9 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 		// add the Tile Provider that uses our Building tiles over
 		// Google Maps
 		TileOverlay mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(new AnyPlaceMapTileProvider(getBaseContext(), b.buid, f.floor_number)).zIndex(0));
+		if (useAmap) {
+			com.amap.api.maps.model.TileOverlay mTileOverlay2 = aMap.addTileOverlay(new com.amap.api.maps.model.TileOverlayOptions().tileProvider(new AnyPlaceMapTileProvider2(getBaseContext(), b.buid, f.floor_number)).zIndex(0));
+		}
 	}
 
 	private void selectPlaceActivityResult(final BuildingModel b, FloorModel f) {
@@ -1146,6 +1225,10 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 			this.marker.remove();
 		}
 		this.marker = this.mMap.addMarker(new MarkerOptions().position(latlng).draggable(true).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+		if (useAmap) {
+			com.amap.api.maps.model.LatLng point = new com.amap.api.maps.model.LatLng(latlng.latitude, latlng.longitude);
+			this.aMap.addMarker(new com.amap.api.maps.model.MarkerOptions().position(point).draggable(true).icon(com.amap.api.maps.model.BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+		}
 		curLocation = latlng;
 	}
 
@@ -1465,6 +1548,21 @@ public class AnyplaceLoggerActivity extends SherlockFragmentActivity implements 
 			showHelp("Help", "<b>1.</b> Please click \"START\"<br><b>2.</b> Then walk around the building in staight lines.<br><b>3.</b> Re-identify your location on the map every time you turn.");
 		}
 
+	}
+
+	@Override
+	public void onMapClick(com.amap.api.maps.model.LatLng latlng2) {
+		LatLng latlng = new LatLng(latlng2.latitude, latlng2.longitude);
+		if (mIsSamplingActive) {
+			saveRecordingToLine(latlng);
+		}
+
+		updateMarker(latlng);
+		updateInfoView();
+
+		if (!mIsSamplingActive) {
+			showHelp("Help", "<b>1.</b> Please click \"START\"<br><b>2.</b> Then walk around the building in staight lines.<br><b>3.</b> Re-identify your location on the map every time you turn.");
+		}
 	}
 
 	// ***************************************************************************************

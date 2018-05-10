@@ -149,6 +149,8 @@ public class FetchFloorsByBuidTask extends AsyncTask<Void, Void, String> {
                 b.buid = cp.getString("buid");
                 b.floor_name = cp.getString("floor_name");
                 b.floor_number = cp.getString("floor_number");
+                if (b.floor_name.indexOf(".") > -1)
+                    continue;
                 b.description = cp.getString("description");
 
                 // use optString() because these values might not exist of a

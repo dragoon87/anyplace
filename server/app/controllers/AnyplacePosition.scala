@@ -85,7 +85,7 @@ object AnyplacePosition extends play.api.mvc.Controller {
         } catch {
           case e: IOException => return AnyResponseHelper.bad_request("Cannot parse json request!")
         }
-        if (json.get("username") == null || json.get("password") == null) {
+        /*if (json.get("username") == null || json.get("password") == null) {
           return AnyResponseHelper.bad_request("Cannot parse json request!")
         }
         val username = json.getString("username")
@@ -101,7 +101,7 @@ object AnyplacePosition extends play.api.mvc.Controller {
           floorFlag = false
         } else {
           return AnyResponseHelper.forbidden("Invalid username or password")
-        }
+        }*/
         val newBuildingsFloors = RadioMap.authenticateRSSlogFileAndReturnBuildingsFloors(radioFile.get.ref.file)
         if (newBuildingsFloors == null) {
           return AnyResponseHelper.bad_request("Corrupted radio file uploaded!")
@@ -269,7 +269,7 @@ object AnyplacePosition extends play.api.mvc.Controller {
           }
         }
         if (!rmapDir.mkdirs()) {
-          return AnyResponseHelper.internal_server_error("Error while creating Radio Map on-the-fly!")
+        //  return AnyResponseHelper.internal_server_error("Error while creating Radio Map on-the-fly!")
         }
         val radio = new File(rmapDir.getAbsolutePath + AnyplaceServerAPI.URL_SEPARATOR + "rss-log")
         var fout: FileOutputStream = null

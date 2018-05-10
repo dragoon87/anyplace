@@ -45,22 +45,27 @@ public class VisibleObject<T> {
 	// association between markers on screen and their PoisModels with the POI
 	// information
 	HashMap<Marker, T> mMarkersToPoi = null;
+	HashMap<com.amap.api.maps.model.Marker, T> mMarkersToPoi2 = null;
 
 	public VisibleObject() {
 		mMarkersToPoi = new HashMap<Marker, T>();
-
+		mMarkersToPoi2 = new HashMap<com.amap.api.maps.model.Marker, T>();
 	}
 
 	public void hideAll() {
-
 		for (Marker m : mMarkersToPoi.keySet()) {
+			m.setVisible(false);
+		}
+		for (com.amap.api.maps.model.Marker m : mMarkersToPoi2.keySet()) {
 			m.setVisible(false);
 		}
 	}
 
 	public void showAll() {
-
 		for (Marker m : mMarkersToPoi.keySet()) {
+			m.setVisible(true);
+		}
+		for (com.amap.api.maps.model.Marker m : mMarkersToPoi2.keySet()) {
 			m.setVisible(true);
 		}
 	}
@@ -70,14 +75,26 @@ public class VisibleObject<T> {
 			m.remove();
 		}
 		mMarkersToPoi.clear();
+		for (com.amap.api.maps.model.Marker m : mMarkersToPoi2.keySet()) {
+			m.remove();
+		}
+		mMarkersToPoi2.clear();
 	}
 
 	public T getPoisModelFromMarker(Marker m) {
 		return mMarkersToPoi.get(m);
 	}
 
+	public T getPoisModelFromMarker(com.amap.api.maps.model.Marker m) {
+		return mMarkersToPoi2.get(m);
+	}
+
 	public void addMarkerAndPoi(Marker m, T pm) {
 		mMarkersToPoi.put(m, pm);
+	}
+
+	public void addMarkerAndPoi(com.amap.api.maps.model.Marker m, T pm) {
+		mMarkersToPoi2.put(m, pm);
 	}
 
 }

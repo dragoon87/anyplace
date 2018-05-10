@@ -75,8 +75,16 @@ import com.actionbarsherlock.view.MenuInflater;
 import com.actionbarsherlock.view.MenuItem;
 import com.actionbarsherlock.view.SubMenu;
 import com.actionbarsherlock.widget.SearchView;
+import com.amap.api.location.AMapLocationClientOption;
+import com.amap.api.maps.AMap;
+import com.amap.api.maps.AMapOptions;
+import com.amap.api.maps.MapView;
+import com.amap.api.maps.UiSettings;
+import com.amap.api.maps.model.*;
 import com.circlegate.tt.cg.an.lib.map.MapWrapperLayout;
+import com.circlegate.tt.cg.an.lib.map.MapWrapperLayout2;
 import com.circlegate.tt.cg.an.lib.map.OnInfoWindowElemTouchListener;
+import com.circlegate.tt.cg.an.lib.map.OnInfoWindowElemTouchListener2;
 import com.dmsl.anyplace.AnyplacePrefs.Action;
 import com.dmsl.anyplace.cache.AnyplaceCache;
 import com.dmsl.anyplace.cache.BackgroundFetchListener;
@@ -87,6 +95,7 @@ import com.dmsl.anyplace.floor.FloorSelector.ErrorAnyplaceFloorListener;
 import com.dmsl.anyplace.floor.FloorSelector.FloorAnyplaceFloorListener;
 import com.dmsl.anyplace.floor.FloorSelector.NonCriticalError;
 import com.dmsl.anyplace.googlemap.AnyPlaceMapTileProvider;
+import com.dmsl.anyplace.googlemap.AnyPlaceMapTileProvider2;
 import com.dmsl.anyplace.googlemap.MyBuildingsRenderer;
 import com.dmsl.anyplace.googlemap.VisiblePois;
 import com.dmsl.anyplace.logger.AnyplaceLoggerActivity;
@@ -111,6 +120,7 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.CancelableCallback;
@@ -118,6 +128,15 @@ import com.google.android.gms.maps.GoogleMap.InfoWindowAdapter;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.*;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.maps.android.clustering.Cluster;
 import com.google.maps.android.clustering.ClusterManager;
 import com.google.maps.android.clustering.ClusterManager.OnClusterClickListener;
@@ -132,9 +151,17 @@ import java.util.List;
 import java.util.Map;
 
 public class UnifiedNavigationActivity extends SherlockFragmentActivity implements AnyplaceTracker.TrackedLocAnyplaceTrackerListener, AnyplaceTracker.WifiResultsAnyplaceTrackerListener, AnyplaceTracker.ErrorAnyplaceTrackerListener, GooglePlayServicesClient.ConnectionCallbacks, GooglePlayServicesClient.OnConnectionFailedListener, LocationListener, FloorAnyplaceFloorListener, ErrorAnyplaceFloorListener, OnSharedPreferenceChangeListener {
+	MapView mMapView = null;
+	AMap aMap = null;
+	UiSettings mUiSettings = null;//定义一个UiSettings对象
+	com.amap.api.maps.model.Marker currentMarker = null;
+	boolean useAmap = true;
 
-	private static final double csLat = 35.144569;
-	private static final double csLon = 33.411107;
+	//30.52700/114.34000
+	//private static final double csLat = 35.144569;
+	//private static final double csLon = 33.411107;
+	private static final double csLat = 30.204273;
+	private static final double csLon = 120.211469;
 	private static final float mInitialZoomLevel = 19.0f;
 	public static final String SHARED_PREFS_ANYPLACE = "Anyplace_Preferences";
 
@@ -183,6 +210,8 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 	private Polyline pathLineInside = null;
 	private PolylineOptions pathLineOutdoorOptions = null;
 	private Polyline pathLineOutdoor = null;
+	private com.amap.api.maps.model.PolylineOptions pathLineOutdoorOptions2 = null;
+	private com.amap.api.maps.model.Polyline pathLineOutdoor2 = null;
 
 	private AnyplaceCache mAnyplaceCache = null;
 	private VisiblePois visiblePois = null;
@@ -229,6 +258,65 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 
 		mAnyplaceCache = AnyplaceCache.getInstance(this);
 		visiblePois = new VisiblePois();
+
+		if (useAmap) {
+			// 定义北京市经纬度坐标（此处以北京坐标为例）
+			com.amap.api.maps.model.LatLng point= new com.amap.api.maps.model.LatLng(30.534380,114.357892);
+			/*// 定义了一个配置 AMap 对象的参数类
+			AMapOptions mapOptions = new AMapOptions();
+			// 设置了一个可视范围的初始化位置
+			// CameraPosition 第一个参数： 目标位置的屏幕中心点经纬度坐标。
+			// CameraPosition 第二个参数： 目标可视区域的缩放级别
+			// CameraPosition 第三个参数： 目标可视区域的倾斜度，以角度为单位。
+			// CameraPosition 第四个参数： 可视区域指向的方向，以角度为单位，从正北向顺时针方向计算，从0度到360度
+			mapOptions.camera(new com.amap.api.maps.model.CameraPosition(point, 10f, 0, 0));
+			// 定义一个 MapView 对象，构造方法中传入 mapOptions 参数类
+			mMapView = new MapView(this, mapOptions);*/
+			//获取地图控件引用
+			mMapView = (MapView) findViewById(R.id.map2);
+			//在activity执行onCreate时执行mMapView.onCreate(savedInstanceState)，创建地图
+			mMapView.onCreate(savedInstanceState);
+			//初始化地图控制器对象
+			if (aMap == null) {
+				aMap = mMapView.getMap();
+			}
+			//参数依次是：视角调整区域的中心点坐标、希望调整到的缩放级别、俯仰角0°~45°（垂直与地图时为0）、偏航角 0~360° (正北方为0)
+			com.amap.api.maps.CameraUpdate mCameraUpdate = com.amap.api.maps.CameraUpdateFactory.newCameraPosition(new com.amap.api.maps.model.CameraPosition(point,18,0,0));
+			aMap.moveCamera(mCameraUpdate);
+
+			//AMapLocationClientOption option = new AMapLocationClientOption();
+			//mLocationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+
+			MyLocationStyle myLocationStyle;
+			myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
+			myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATE) ;//定位一次，且将视角移动到地图中心点。
+			myLocationStyle.interval(2000); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
+			aMap.setMyLocationStyle(myLocationStyle);//设置定位蓝点的Style
+			aMap.getUiSettings().setMyLocationButtonEnabled(true);//设置默认定位按钮是否显示，非必需设置。
+			aMap.setMyLocationEnabled(true);// 设置为true表示启动显示定位蓝点，false表示隐藏定位蓝点并不进行定位，默认是false。
+
+			aMap.setMaxZoomLevel(20);
+			if (mUiSettings == null) {
+				mUiSettings = aMap.getUiSettings();//实例化UiSettings类对象
+			}
+
+			aMap.setOnMyLocationChangeListener(new AMap.OnMyLocationChangeListener() {
+				@Override
+				public void onMyLocationChange(Location location) {
+					//从location对象中获取经纬度信息，地址描述信息，建议拿到位置之后调用逆地理编码接口获取（获取地址描述数据章节有介绍）
+					userData.setLocationIP(new GeoPoint(location.getLatitude(), location.getLongitude()));
+				}
+			});
+			aMap.setOnMapClickListener(new AMap.OnMapClickListener() {
+				@Override
+				public void onMapClick(com.amap.api.maps.model.LatLng latLng) {
+					if(currentMarker.isInfoWindowShown()) {
+						currentMarker.hideInfoWindow();//这个是隐藏infowindow窗口的方法
+					}
+				}
+			});
+			//mUiSettings.setZoomControlsEnabled(false);
+		}
 
 		setUpMapIfNeeded();
 
@@ -523,6 +611,10 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 		sensorsStepCounter.resume();
 		lpTracker.resumeTracking();
 		floorSelector.resumeTracking();
+		if (useAmap) {
+			//在activity执行onResume时执行mMapView.onResume ()，重新绘制加载地图
+			mMapView.onResume();
+		}
 	}
 
 	@Override
@@ -533,6 +625,19 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 		sensorsMain.pause();
 		sensorsStepCounter.pause();
 		removeTrackerListeners();
+		if (useAmap) {
+			//在activity执行onPause时执行mMapView.onPause ()，暂停地图的绘制
+			mMapView.onPause();
+		}
+	}
+
+	@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		super.onSaveInstanceState(outState);
+		if (useAmap) {
+			//在activity执行onSaveInstanceState时执行mMapView.onSaveInstanceState (outState)，保存地图当前的状态
+			mMapView.onSaveInstanceState(outState);
+		}
 	}
 
 	@Override
@@ -555,6 +660,10 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		if (useAmap) {
+			//在activity执行onDestroy时执行mMapView.onDestroy()，销毁地图
+			mMapView.onDestroy();
+		}
 	}
 
 	@Override
@@ -772,19 +881,25 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 		if (mMap != null) {
 
 			// http://stackoverflow.com/questions/14123243/google-maps-android-api-v2-interactive-infowindow-like-in-original-android-go
-			final MapWrapperLayout mapWrapperLayout = (MapWrapperLayout) findViewById(R.id.map_relative_layout);
+			final MapWrapperLayout2 mapWrapperLayout2 = (MapWrapperLayout2) findViewById(R.id.map_relative_layout);
+			final MapWrapperLayout mapWrapperLayout = null;//(MapWrapperLayout) findViewById(R.id.map_relative_layout);
 
 			// MapWrapperLayout initialization
 			// 39 - default marker height
 			// 20 - offset between the default InfoWindow bottom edge and
 			// it's content bottom edge
-			mapWrapperLayout.init(mMap, getPixelsFromDp(this, 39 + 20));
+			if (useAmap) {
+				mapWrapperLayout2.init(aMap, getPixelsFromDp(this, 39 + 20));
+			} else {
+				mapWrapperLayout.init(mMap, getPixelsFromDp(this, 39 + 20));
+			}
 
 			final ViewGroup infoWindow;
 			final TextView infoTitle;
 			final TextView infoSnippet;
 			final Button infoButton1;
 			final OnInfoWindowElemTouchListener infoButtonListener1;
+			final OnInfoWindowElemTouchListener2 infoButtonListener12;
 			Button infoButton2;
 			final OnInfoWindowElemTouchListener infoButtonListener2;
 
@@ -799,65 +914,106 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 			// Setting custom OnTouchListener which deals with the pressed
 			// state
 			// so it shows up
-			infoButtonListener1 = new OnInfoWindowElemTouchListener(infoButton1, getResources().getDrawable(R.drawable.button_unsel), getResources().getDrawable(R.drawable.button_sel)) {
-				@Override
-				protected void onClickConfirmed(View v, Marker marker) {
+			if (!useAmap) {
+				infoButtonListener1 = new OnInfoWindowElemTouchListener(infoButton1, getResources().getDrawable(R.drawable.button_unsel), getResources().getDrawable(R.drawable.button_sel)) {
+					@Override
+					protected void onClickConfirmed(View v, Marker marker) {
 
-					PoisModel poi = visiblePois.getPoisModelFromMarker(marker);
-					if (poi != null) {
-						// start the navigation using the clicked marker as
-						// destination
-						startNavigationTask(poi.puid);
-					}
-
-				}
-			};
-			infoButton1.setOnTouchListener(infoButtonListener1);
-
-			// Setting custom OnTouchListener which deals with the pressed
-			// state
-			// so it shows up
-			infoButtonListener2 = new OnInfoWindowElemTouchListener(infoButton2, getResources().getDrawable(R.drawable.button_unsel), getResources().getDrawable(R.drawable.button_sel)) {
-				@Override
-				protected void onClickConfirmed(View v, Marker marker) {
-
-					PoisModel poi = visiblePois.getPoisModelFromMarker(marker);
-					if (poi != null) {
-						if (poi.description.equals("") || poi.description.equals("-")) {
-							// start the navigation using the clicked marker
-							// as destination
-							popup_msg("No description available.", poi.name);
-						} else {
-							popup_msg(poi.description, poi.name);
+						PoisModel poi = visiblePois.getPoisModelFromMarker(marker);
+						if (poi != null) {
+							// start the navigation using the clicked marker as
+							// destination
+							startNavigationTask(poi.puid);
 						}
 
 					}
+				};
+				infoButton1.setOnTouchListener(infoButtonListener1);
 
-				}
-			};
-			infoButton2.setOnTouchListener(infoButtonListener2);
+				// Setting custom OnTouchListener which deals with the pressed
+				// state
+				// so it shows up
+				infoButtonListener2 = new OnInfoWindowElemTouchListener(infoButton2, getResources().getDrawable(R.drawable.button_unsel), getResources().getDrawable(R.drawable.button_sel)) {
+					@Override
+					protected void onClickConfirmed(View v, Marker marker) {
 
-			mMap.setInfoWindowAdapter(new InfoWindowAdapter() {
-				@Override
-				public View getInfoWindow(Marker marker) {
-					return null;
-				}
+						PoisModel poi = visiblePois.getPoisModelFromMarker(marker);
+						if (poi != null) {
+							if (poi.description.equals("") || poi.description.equals("-")) {
+								// start the navigation using the clicked marker
+								// as destination
+								popup_msg("No description available.", poi.name);
+							} else {
+								popup_msg(poi.description, poi.name);
+							}
 
-				@Override
-				public View getInfoContents(Marker marker) {
-					// Setting up the infoWindow with current's marker info
-					infoTitle.setText(marker.getTitle());
-					infoSnippet.setText(marker.getSnippet());
-					infoButtonListener1.setMarker(marker);
-					infoButtonListener2.setMarker(marker);
+						}
 
-					// We must call this to set the current marker and
-					// infoWindow references
-					// to the MapWrapperLayout
-					mapWrapperLayout.setMarkerWithInfoWindow(marker, infoWindow);
-					return infoWindow;
-				}
-			});
+					}
+				};
+				infoButton2.setOnTouchListener(infoButtonListener2);
+
+				mMap.setInfoWindowAdapter(new InfoWindowAdapter() {
+					@Override
+					public View getInfoWindow(Marker marker) {
+						return null;
+					}
+
+					@Override
+					public View getInfoContents(Marker marker) {
+						// Setting up the infoWindow with current's marker info
+						infoTitle.setText(marker.getTitle());
+						infoSnippet.setText(marker.getSnippet());
+						if (!useAmap)
+							infoButtonListener1.setMarker(marker);
+						infoButtonListener2.setMarker(marker);
+
+						// We must call this to set the current marker and
+						// infoWindow references
+						// to the MapWrapperLayout
+						mapWrapperLayout.setMarkerWithInfoWindow(marker, infoWindow);
+						return infoWindow;
+					}
+				});
+			} else {
+				infoButtonListener12 = new OnInfoWindowElemTouchListener2(infoButton1, getResources().getDrawable(R.drawable.button_unsel), getResources().getDrawable(R.drawable.button_sel)) {
+					@Override
+					protected void onClickConfirmed(View v, com.amap.api.maps.model.Marker marker) {
+
+						PoisModel poi = visiblePois.getPoisModelFromMarker(marker);
+						if (poi != null) {
+							// start the navigation using the clicked marker as
+							// destination
+							startNavigationTask(poi.puid);
+						}
+
+					}
+				};
+				infoButton1.setOnTouchListener(infoButtonListener12);
+
+				aMap.setInfoWindowAdapter(new com.amap.api.maps.AMap.InfoWindowAdapter() {
+					@Override
+					public View getInfoWindow(com.amap.api.maps.model.Marker marker) {
+						return null;
+					}
+
+					@Override
+					public View getInfoContents(com.amap.api.maps.model.Marker marker) {
+						// Setting up the infoWindow with current's marker info
+						infoTitle.setText(marker.getTitle());
+						infoSnippet.setText(marker.getSnippet());
+						infoButtonListener12.setMarker(marker);
+						//infoButtonListener2.setMarker(marker);
+
+						// We must call this to set the current marker and
+						// infoWindow references
+						// to the MapWrapperLayout
+						mapWrapperLayout2.setMarkerWithInfoWindow(marker, infoWindow);
+						return infoWindow;
+					}
+				});
+			}
+
 			setUpMap();
 		}
 
@@ -879,11 +1035,15 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 	private void initMap() {
 		// Sets the map type to be NORMAL - ROAD mode
 		mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-		// mMap.setMyLocationEnabled(true); //displays a button to navigate to
+		mMap.setMyLocationEnabled(true); //displays a button to navigate to
+
+		LatLng test = new LatLng(30.534380, 114.357892);
+		mMap.addMarker(new MarkerOptions().position(test).title("Marker Test"));
+		mMap.moveCamera(CameraUpdateFactory.newLatLng(test));
+
 		// the current user's position
-		// mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter(this,
-		// mPoiMarkersBundle));
-		mMap.setBuildingsEnabled(false);
+		//mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter(this, mPoiMarkersBundle));
+		mMap.setBuildingsEnabled(true);
 	}
 
 	// Called from onConnecetd
@@ -918,7 +1078,7 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 				@Override
 				protected Void doInBackground(Void... params) {
 					try {
-						location = AndroidUtils.getIPLocation();
+						//location = AndroidUtils.getIPLocation();
 					} catch (Exception e) {
 
 					}
@@ -1011,6 +1171,16 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 				}
 			}
 		});
+
+		if (useAmap) {
+			aMap.setOnMarkerClickListener(new com.amap.api.maps.AMap.OnMarkerClickListener() {
+				@Override
+				public boolean onMarkerClick(com.amap.api.maps.model.Marker marker) {
+					currentMarker = marker;
+					return false;
+				}
+			});
+		}
 
 		mClusterManager.setOnClusterClickListener(new OnClusterClickListener<BuildingModel>() {
 
@@ -1428,6 +1598,24 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 			}
 		});
 
+		if (useAmap) {
+			com.amap.api.maps.model.TileOverlay mTileOverlay2 = aMap.addTileOverlay(new com.amap.api.maps.model.TileOverlayOptions().tileProvider(new AnyPlaceMapTileProvider2(getBaseContext(), b.buid, f.floor_number)));
+			com.amap.api.maps.model.LatLng point = new com.amap.api.maps.model.LatLng(b.getPosition().latitude, b.getPosition().longitude);
+			aMap.animateCamera(com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(point, 19.0f), new com.amap.api.maps.AMap.CancelableCallback() {
+				@Override
+				public void onFinish() {
+					cameraUpdate = false;
+					handleBuildingsOnMap(false);
+					updateLocation();
+				}
+
+				@Override
+				public void onCancel() {
+					cameraUpdate = false;
+				}
+			});
+		}
+
 		// we must now change the radio map file since we changed floor RADIO MAP initialization
 		try {
 			File root = AnyplaceUtils.getRadioMapFoler(this, b.buid, userData.getSelectedFloorNumber());
@@ -1541,8 +1729,9 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 	// <Play Services Functions>
 
 	private boolean checkPlayServices() {
+		return true;
 		// Check that Google Play services is available
-		int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+		/*int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
 		// If Google Play services is available
 		if (ConnectionResult.SUCCESS == resultCode) {
 			// In debug mode, log the status
@@ -1561,7 +1750,7 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 				finish();
 			}
 			return false;
-		}
+		}*/
 	}
 
 	@Override
@@ -1598,6 +1787,13 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 			initCamera();
 			// Get Wifi + GPS Fused Location
 			Location currentLocation = mLocationClient.getLastLocation();
+			/*if (null == currentLocation) {
+				LocationManager locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
+				currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+				currentLocation = new Location("gps");
+				currentLocation.setLongitude(114.357892);
+				currentLocation.setLatitude(30.534380);
+			}*/
 			// we must set listener to the get the first location from the API
 			// it will trigger the onLocationChanged below when a new location
 			// is found or notify the user
@@ -1694,13 +1890,16 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 		final AsyncTask<Void, Void, String> async1f = new NavOutdoorTask(new NavOutdoorTask.NavDirectionsListener() {
 
 			@Override
-			public void onNavDirectionsSuccess(String result, List<LatLng> points) {
+			public void onNavDirectionsSuccess(String result, List<LatLng> points, List<com.amap.api.maps.model.LatLng> points2) {
 				onNavDirectionsFinished();
 
-				if (!points.isEmpty()) {
+				if (points != null && !points.isEmpty()) {
 					// points.add(new LatLng(entrancef.dlat, entrancef.dlon));
 					pathLineOutdoorOptions = new PolylineOptions().addAll(points).width(10).color(Color.RED).zIndex(100.0f);
 					pathLineOutdoor = mMap.addPolyline(pathLineOutdoorOptions);
+				} else if (points2 != null && !points2.isEmpty()) {
+					pathLineOutdoorOptions2 = new com.amap.api.maps.model.PolylineOptions().addAll(points2).width(10).color(Color.RED).zIndex(100.0f);
+					pathLineOutdoor2 = aMap.addPolyline(pathLineOutdoorOptions2);
 				}
 			}
 
@@ -1779,6 +1978,9 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 		}
 		if (pathLineOutdoor != null) {
 			pathLineOutdoor.remove();
+		}
+		if (pathLineOutdoor2 != null) {
+			pathLineOutdoor2.remove();
 		}
 		visiblePois.clearFromMarker();
 		visiblePois.clearToMarker();
@@ -1904,6 +2106,10 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 			if (pm.floor_number.equalsIgnoreCase(currentFloor)) {
 				String snippet = AndroidUtils.fillTextBox(paint, fragmentWidth, pm.description);
 				Marker m = mMap.addMarker(new MarkerOptions().position(new LatLng(Double.parseDouble(pm.lat), Double.parseDouble(pm.lng))).title(pm.name).snippet(snippet).icon(BitmapDescriptorFactory.fromResource(R.drawable.pin8)));
+				if (useAmap) {
+					com.amap.api.maps.model.Marker m2 = aMap.addMarker(new com.amap.api.maps.model.MarkerOptions().position(new com.amap.api.maps.model.LatLng(Double.parseDouble(pm.lat), Double.parseDouble(pm.lng))).title(pm.name).snippet(snippet).icon(com.amap.api.maps.model.BitmapDescriptorFactory.fromResource(R.drawable.pin8)));
+					visiblePois.addMarkerAndPoi(m2, pm);
+				}
 				visiblePois.addMarkerAndPoi(m, pm);
 			}
 		}
@@ -2073,6 +2279,15 @@ public class UnifiedNavigationActivity extends SherlockFragmentActivity implemen
 			marker.icon(BitmapDescriptorFactory.fromResource(R.drawable.icon21));
 			marker.rotation(sensorsMain.getRAWHeading() - bearing);
 			userMarker = this.mMap.addMarker(marker);
+
+			if (useAmap) {
+				com.amap.api.maps.model.MarkerOptions marker2 = new com.amap.api.maps.model.MarkerOptions();
+				marker2.position(new com.amap.api.maps.model.LatLng(location.dlat, location.dlon));
+				marker2.title("User").snippet("Estimated Position");
+				marker2.icon(com.amap.api.maps.model.BitmapDescriptorFactory.fromResource(R.drawable.icon21));
+				marker2.rotateAngle(sensorsMain.getRAWHeading() - bearing);
+				this.aMap.addMarker(marker2);
+			}
 		}
 	}
 

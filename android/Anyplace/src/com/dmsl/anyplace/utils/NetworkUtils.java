@@ -41,6 +41,16 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +63,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -163,6 +176,7 @@ public class NetworkUtils {
             throw new RuntimeException("Service Error: " + con.getResponseMessage());
         }
 
+        //con.disconnect();
         return is;
     }
 
@@ -170,6 +184,29 @@ public class NetworkUtils {
 
         String content = readInputStream(ISdownloadHttpClientJsonPostHelp(url, json, timeout));
         return content;
+    }
+
+    public static String downloadHttpClientJsonPost2(String url, String json) throws URISyntaxException, IOException, JSONException {
+        InputStream is;
+        HttpClient client = new DefaultHttpClient();
+        HttpPost httppost = new HttpPost(url);
+        List<NameValuePair> parameter = new ArrayList();
+        JSONObject jsons = new JSONObject(json);
+        Iterator it = jsons.keys();
+        while (it.hasNext()) {
+            String key = (String) it.next();
+            String value = jsons.getString(key);
+            parameter.add(new BasicNameValuePair(key, value));
+        }
+        httppost.setEntity(new UrlEncodedFormEntity(parameter,"utf-8"));
+        HttpResponse response = client.execute(httppost);
+        int code = response.getStatusLine().getStatusCode();
+        if (code == 200) {
+            is = response.getEntity().getContent();
+        } else {
+            throw new RuntimeException("Service Error: ");
+        }
+        return readInputStream(is);
     }
 
     public static String downloadHttpClientJsonPost(String url, String json) throws URISyntaxException, IOException {

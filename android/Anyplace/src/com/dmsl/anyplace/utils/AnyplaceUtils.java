@@ -52,10 +52,10 @@ public class AnyplaceUtils {
 			throw new Exception("Error: It seems we cannot access the sdcard!");
 		}
 		File root = new File(sdcard_root, folder);
-		root.mkdirs();
+		/*root.mkdirs();
 		if (root.isDirectory() == false) {
 			throw new Exception("Error: It seems we cannot write on the sdcard!");
-		}
+		}*/
 		return root;
 	}
 
@@ -94,11 +94,11 @@ public class AnyplaceUtils {
 	public static File getRadioMapFoler(Context ctx, String buid, String floor) throws Exception {
 		File root = getRadioMapsRootFolder(ctx);
 		File file = new File(root, (buid == null ? "-" : buid) + "fl_" + (floor == null ? "-" : floor));
-		file.mkdirs();
+		/*file.mkdirs();
 
 		if (file.isDirectory() == false) {
 			throw new Exception("Error: It seems we cannot write on the sdcard!");
-		}
+		}*/
 
 		return file;
 	}

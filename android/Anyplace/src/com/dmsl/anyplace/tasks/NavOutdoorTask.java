@@ -54,7 +54,7 @@ public class NavOutdoorTask extends AsyncTask<Void, Void, String> {
 
 		void onNavDirectionsErrorOrCancel(String result);
 
-		void onNavDirectionsSuccess(String result, List<LatLng> points);
+		void onNavDirectionsSuccess(String result, List<LatLng> points, List<com.amap.api.maps.model.LatLng> points2);
 	}
 
 	private enum Status {
@@ -66,6 +66,7 @@ public class NavOutdoorTask extends AsyncTask<Void, Void, String> {
 	private GeoPoint fromPosition;
 	private GeoPoint toPosition;
 	private ArrayList<LatLng> directionPoints;
+	private ArrayList<com.amap.api.maps.model.LatLng> directionPoints2;
 	private Status status = Status.ERROR;
 
 	public NavOutdoorTask(NavDirectionsListener l, GeoPoint fromPosition, GeoPoint pos) {
@@ -90,12 +91,12 @@ public class NavOutdoorTask extends AsyncTask<Void, Void, String> {
 			double distance = GeoPoint.getDistanceBetweenPoints(fromPosition.dlon, fromPosition.dlat, toPosition.dlon, toPosition.dlat, "");
 			if (distance < 500) {
 				status = Status.ABORT;
-				return "Task Cancelled";
+				//return "Task Cancelled";
 			}
 
 			GMapV2Direction md = new GMapV2Direction();
 			Document doc = md.getDocument(fromPosition.dlat, fromPosition.dlon, toPosition, GMapV2Direction.MODE_DRIVING);
-			directionPoints = md.getDirection(doc);
+			directionPoints2 = md.getDirection2(doc);
 			status = Status.SUCCESS;
 			return "Successfully plotted navigation route!";
 		} catch (Exception e) {
@@ -109,7 +110,7 @@ public class NavOutdoorTask extends AsyncTask<Void, Void, String> {
 		switch (status) {
 		case SUCCESS:
 			// call the success listener
-			mListener.onNavDirectionsSuccess(result, directionPoints);
+			mListener.onNavDirectionsSuccess(result, directionPoints, directionPoints2);
 			break;
 		case ERROR:
 			// call the error listener

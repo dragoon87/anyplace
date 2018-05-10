@@ -202,6 +202,7 @@ public class LoggerWiFi {
 					fos.write(header.getBytes());
 					for (int j = 0; j < writeRecords.size(); ++j) {
 						writeLR = writeRecords.get(j);
+						currentFloor = currentFloor.split("[.]")[0];
 						fos.write((writeLR.toString() + " " + String.valueOf(currentFloor) + " " + String.valueOf(currentBuilding) + "\n").getBytes());
 					}
 				}

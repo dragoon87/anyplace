@@ -216,7 +216,9 @@ public class AnyUserData {
 
 		// lat = "35.148958"; // KIOS Research Center
 		// lon = "33.386422";
-		
+
+		lat = "30.5030227"; // FST01
+		lon = "114.399573";
 		return new GeoPoint(lat, lon);
 	}
 

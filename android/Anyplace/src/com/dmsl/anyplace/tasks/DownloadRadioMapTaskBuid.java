@@ -155,14 +155,14 @@ public class DownloadRadioMapTaskBuid extends AsyncTask<Void, Void, String> {
 			okfile.delete();
 
 			// receive only the radio map for the current floor 0 timeout overrides default timeout
-			String response = NetworkUtils.downloadHttpClientJsonPost(AnyplaceAPI.getRadioDownloadBuid(), json_req, 0);
+			String response = NetworkUtils.downloadHttpClientJsonPost(AnyplaceAPI.getRadioDownloadBuid(), json_req);
 			JSONObject json = new JSONObject(response);
 
 			if (json.getString("status").equalsIgnoreCase("error")) {
 				return "Error Message: " + json.getString("message");
 			}
 
-			String means = json.getString("map_url_mean");
+			String means = json.getString("map_url_mean").replace("\\","/");
 
 			// create the credentials JSON in order to send and download the radio map
 			JSONObject json_credentials = new JSONObject();
@@ -184,6 +184,8 @@ public class DownloadRadioMapTaskBuid extends AsyncTask<Void, Void, String> {
 			String mean_fname = filename_radiomap_download;
 			// String rbf_weights_fname = mean_fname.replace(".txt", "-rbf-weights.txt");
 			// String parameters_fname = mean_fname.replace(".txt", "-parameters.txt");
+			if (!root.exists())
+				root.mkdirs();
 			FileWriter out;
 
 			out = new FileWriter(new File(root, mean_fname));
